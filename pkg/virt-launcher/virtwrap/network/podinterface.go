@@ -552,12 +552,19 @@ func (b *BridgePodInterface) setInterfaceRoutes() error {
 	if len(routes) == 0 {
 		return fmt.Errorf("No gateway address found in routes for %s", b.podInterfaceName)
 	}
-	b.vif.Gateway = routes[0].Gw
+	//b.vif.Gateway = routes[0].Gw
+	b.vif.Gateway = getGW(b)
 	if len(routes) > 1 {
 		dhcpRoutes := filterPodNetworkRoutes(routes, b.vif)
 		b.vif.Routes = &dhcpRoutes
 	}
 	return nil
+}
+
+func getGW(b *BridgePodInterface) net.IP {
+	peer := b.vif.IP.IP.To4()
+	log.Log.Infof("peer.IP is %v", peer.To4())
+	return net.IPv4(peer[0], peer[1], peer[2], 1)
 }
 
 func (b *BridgePodInterface) createBridge() error {
