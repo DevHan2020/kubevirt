@@ -1279,6 +1279,11 @@ func (t *templateService) RenderHotplugAttachmentPodTemplate(volume *v1.Volume, 
 			},
 			HostNetwork:                   true,
 			TerminationGracePeriodSeconds: &zero,
+			Tolerations: []k8sv1.Toleration{
+				{
+					Operator: "Exists",
+				},
+			},
 		},
 	}
 
