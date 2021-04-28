@@ -223,7 +223,7 @@ func (p *PollerWorker) Poll(execAgentCommands agentCommandsExecutor, closeChan c
 
 func replaceTicker(ticker *time.Ticker, interval time.Duration) *time.Ticker {
 	ticker.Stop()
-	return time.NewTicker(time.Second * interval)
+	return time.NewTicker(interval)
 }
 
 func incrementPollInterval(interval time.Duration, maxInterval time.Duration) time.Duration {
@@ -328,6 +328,7 @@ func executeAgentCommands(commands []AgentCommand, con cli.Connection, agentStor
 				log.Log.Errorf("Cannot parse guest agent interface %s", err.Error())
 			}
 			agentStore.Store(GET_INTERFACES, interfaces)
+			log.Log.Infof("interface is : %s", interfaces)
 		case GET_OSINFO:
 			osInfo, err := parseGuestOSInfo(cmdResult)
 			if err != nil {
