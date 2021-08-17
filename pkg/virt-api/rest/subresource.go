@@ -263,7 +263,7 @@ func getChangeRequestJson(vm *v1.VirtualMachine, changes ...v1.VirtualMachineSta
 func getRunningJson(vm *v1.VirtualMachine, running bool) string {
 	runStrategy := v1.RunStrategyHalted
 	if running {
-		runStrategy = v1.RunStrategyAlways
+		runStrategy = v1.RunStrategyRerunOnFailure
 	}
 	if vm.Spec.RunStrategy != nil {
 		return fmt.Sprintf("{\"spec\":{\"runStrategy\": \"%s\"}}", runStrategy)
