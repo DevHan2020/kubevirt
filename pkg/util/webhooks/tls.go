@@ -74,6 +74,44 @@ func SetupTLSWithCertManager(caManager ClientCAManager, certManager certificate.
 	return tlsConfig
 }
 
+func SetupTLSWithCertManagerWithCipher(caManager ClientCAManager, certManager certificate.Manager,
+	clientAuth tls.ClientAuthType, tlsCipherSuites []uint16) *tls.Config {
+	tlsConfig := &tls.Config{
+		CipherSuites: tlsCipherSuites,
+		GetCertificate: func(info *tls.ClientHelloInfo) (certificate *tls.Certificate, err error) {
+			cert := certManager.Current()
+			if cert == nil {
+				return nil, fmt.Errorf("No server certificate, server is not yet ready to receive traffic")
+			}
+			return cert, nil
+		},
+		GetConfigForClient: func(hi *tls.ClientHelloInfo) (*tls.Config, error) {
+			cert := certManager.Current()
+			if cert == nil {
+				return nil, fmt.Errorf("No server certificate, server is not yet ready to receive traffic")
+			}
+
+			clientCAPool, err := caManager.GetCurrent()
+			if err != nil {
+				log.Log.Reason(err).Error("Failed to get requestheader client CA")
+				return nil, err
+			}
+			config := &tls.Config{
+				CipherSuites: tlsCipherSuites,
+				MinVersion:   tls.VersionTLS12,
+				Certificates: []tls.Certificate{*cert},
+				ClientCAs:    clientCAPool,
+				ClientAuth:   clientAuth,
+			}
+
+			config.BuildNameToCertificate()
+			return config, nil
+		},
+	}
+	tlsConfig.BuildNameToCertificate()
+	return tlsConfig
+}
+
 func SetupTLSForVirtHandlerServer(caManager ClientCAManager, certManager certificate.Manager, externallyManaged bool) *tls.Config {
 	// #nosec cause: InsecureSkipVerify: true
 	// resolution: Neither the client nor the server should validate anything itself, `VerifyPeerCertificate` is still executed
