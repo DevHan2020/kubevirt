@@ -74,31 +74,6 @@ const (
 	defaultHandlerKeyFilePath  = "/etc/virt-handler/clientcertificates/tls.key"
 )
 
-var ciphers = map[string]uint16{
-	"TLS_RSA_WITH_RC4_128_SHA":                tls.TLS_RSA_WITH_RC4_128_SHA,
-	"TLS_RSA_WITH_3DES_EDE_CBC_SHA":           tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
-	"TLS_RSA_WITH_AES_128_CBC_SHA":            tls.TLS_RSA_WITH_AES_128_CBC_SHA,
-	"TLS_RSA_WITH_AES_256_CBC_SHA":            tls.TLS_RSA_WITH_AES_256_CBC_SHA,
-	"TLS_RSA_WITH_AES_128_CBC_SHA256":         tls.TLS_RSA_WITH_AES_128_CBC_SHA256,
-	"TLS_RSA_WITH_AES_128_GCM_SHA256":         tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
-	"TLS_RSA_WITH_AES_256_GCM_SHA384":         tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
-	"TLS_ECDHE_ECDSA_WITH_RC4_128_SHA":        tls.TLS_ECDHE_ECDSA_WITH_RC4_128_SHA,
-	"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA":    tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
-	"TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA":    tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
-	"TLS_ECDHE_RSA_WITH_RC4_128_SHA":          tls.TLS_ECDHE_RSA_WITH_RC4_128_SHA,
-	"TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA":     tls.TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA,
-	"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA":      tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
-	"TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA":      tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
-	"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256": tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
-	"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256":   tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
-	"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256":   tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-	"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256": tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-	"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384":   tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-	"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384": tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-	"TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305":    tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
-	"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305":  tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
-}
-
 type VirtApi interface {
 	Compose()
 	Run()
@@ -674,34 +649,23 @@ func (app *virtAPIApp) registerMutatingWebhook() {
 
 func (app *virtAPIApp) setupTLS(k8sCAManager webhooksutils.ClientCAManager, kubevirtCAManager webhooksutils.ClientCAManager) {
 
-	// Fix CVE-2016-2183
-	if app.tlsCipherSuites != nil {
-		log.Log.Infof("tls cipher suites: %v", app.tlsCipherSuites)
-		tlsCipherSuites, err := TLSCipherSuites(app.tlsCipherSuites)
-		if err != nil {
-			log.Log.Errorf("failed to get tls cipher suites, err: %s", err.Error())
-		}
-		app.tlsConfig = webhooksutils.SetupTLSWithCertManagerWithCipher(k8sCAManager, app.certmanager, tls.VerifyClientCertIfGiven, tlsCipherSuites)
-		app.handlerTLSConfiguration = webhooksutils.SetupTLSForVirtHandlerClients(kubevirtCAManager, app.handlerCertManager, app.externallyManaged)
-	} else {
-		// A VerifyClientCertIfGiven request means we're not guaranteed
-		// a client has been authenticated unless they provide a peer
-		// cert.
-		//
-		// Make sure to verify in subresource endpoint that peer cert
-		// was provided before processing request. If the peer cert is
-		// given on the connection, then we can be guaranteed that it
-		// was signed by the client CA in our pool.
-		//
-		// There is another ClientAuth type called 'RequireAndVerifyClientCert'
-		// We can't use this type here because during the aggregated api status
-		// check it attempts to hit '/' on our api endpoint to verify an http
-		// response is given. That status request won't send a peer cert regardless
-		// if the TLS handshake requests it. As a result, the TLS handshake fails
-		// and our aggregated endpoint never becomes available.
-		app.tlsConfig = webhooksutils.SetupTLSWithCertManager(k8sCAManager, app.certmanager, tls.VerifyClientCertIfGiven)
-		app.handlerTLSConfiguration = webhooksutils.SetupTLSForVirtHandlerClients(kubevirtCAManager, app.handlerCertManager, app.externallyManaged)
-	}
+	// A VerifyClientCertIfGiven request means we're not guaranteed
+	// a client has been authenticated unless they provide a peer
+	// cert.
+	//
+	// Make sure to verify in subresource endpoint that peer cert
+	// was provided before processing request. If the peer cert is
+	// given on the connection, then we can be guaranteed that it
+	// was signed by the client CA in our pool.
+	//
+	// There is another ClientAuth type called 'RequireAndVerifyClientCert'
+	// We can't use this type here because during the aggregated api status
+	// check it attempts to hit '/' on our api endpoint to verify an http
+	// response is given. That status request won't send a peer cert regardless
+	// if the TLS handshake requests it. As a result, the TLS handshake fails
+	// and our aggregated endpoint never becomes available.
+	app.tlsConfig = webhooksutils.SetupTLSWithCertManager(k8sCAManager, app.certmanager, tls.VerifyClientCertIfGiven, app.tlsCipherSuites)
+	app.handlerTLSConfiguration = webhooksutils.SetupTLSForVirtHandlerClients(kubevirtCAManager, app.handlerCertManager, app.externallyManaged)
 }
 
 func (app *virtAPIApp) startTLS(informerFactory controller.KubeInformerFactory, stopCh <-chan struct{}) error {
@@ -816,19 +780,4 @@ func (app *virtAPIApp) AddFlags() {
 		"Private key for the client certificate used to prove the identity of the virt-api when it must call virt-handler during a request")
 	flag.BoolVar(&app.externallyManaged, "externally-managed", false,
 		"Allow intermediate certificates to be used in building up the chain of trust when certificates are externally managed")
-}
-
-func TLSCipherSuites(cipherNames []string) ([]uint16, error) {
-	if len(cipherNames) == 0 {
-		return nil, nil
-	}
-	ciphersIntSlice := make([]uint16, 0)
-	for _, cipher := range cipherNames {
-		intValue, ok := ciphers[cipher]
-		if !ok {
-			return nil, fmt.Errorf("Cipher suite %s not supported or doesn't exist", cipher)
-		}
-		ciphersIntSlice = append(ciphersIntSlice, intValue)
-	}
-	return ciphersIntSlice, nil
 }

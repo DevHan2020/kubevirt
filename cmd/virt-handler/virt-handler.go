@@ -135,6 +135,8 @@ type virtHandlerApp struct {
 	servercertmanager certificate.Manager
 	promTLSConfig     *tls.Config
 	clusterConfig     *virtconfig.ClusterConfig
+
+	tlsCipherSuites []string
 }
 
 var _ service.Service = &virtHandlerApp{}
@@ -447,6 +449,8 @@ func (app *virtHandlerApp) AddFlags() {
 	flag.StringVar(&app.serverKeyFilePath, "tls-key-file", defaultTlsKeyFilePath,
 		"File containing the default x509 private key matching --tls-cert-file")
 
+	flag.StringSliceVar(&app.tlsCipherSuites, "tls-cipher-suites", nil, "Comma-separated list of cipher suites for the server.")
+
 	flag.BoolVar(&app.externallyManaged, "externally-managed", false,
 		"Allow intermediate certificates to be used in building up the chain of trust when certificates are externally managed")
 
@@ -474,7 +478,7 @@ func (app *virtHandlerApp) setupTLS(factory controller.KubeInformerFactory) erro
 	kubevirtCAConfigInformer := factory.KubeVirtCAConfigMap()
 	caManager := webhooks.NewCAManager(kubevirtCAConfigInformer.GetStore(), app.namespace, app.caConfigMapName)
 
-	app.promTLSConfig = webhooks.SetupPromTLS(app.servercertmanager)
+	app.promTLSConfig = webhooks.SetupPromTLS(app.servercertmanager, app.tlsCipherSuites)
 	app.serverTLSConfig = webhooks.SetupTLSForVirtHandlerServer(caManager, app.servercertmanager, app.externallyManaged)
 	app.clientTLSConfig = webhooks.SetupTLSForVirtHandlerClients(caManager, app.clientcertmanager, app.externallyManaged)
 

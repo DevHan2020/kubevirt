@@ -164,7 +164,7 @@ var _ = Describe("TLS", func() {
 	)
 
 	It("should allow anonymous TLS connections to prometheus endpoints", func() {
-		serverTLSConfig := webhooks.SetupPromTLS(certmanagers[components.VirtHandlerServerCertSecretName])
+		serverTLSConfig := webhooks.SetupPromTLS(certmanagers[components.VirtHandlerServerCertSecretName], nil)
 		srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintln(w, "hello")
 		}))
@@ -181,7 +181,7 @@ var _ = Describe("TLS", func() {
 	})
 
 	table.DescribeTable("should verify self-signed client and server certificates", func(serverSecret, clientSecret string, errStr string) {
-		serverTLSConfig := webhooks.SetupTLSWithCertManager(caManager, certmanagers[serverSecret], tls.RequireAndVerifyClientCert)
+		serverTLSConfig := webhooks.SetupTLSWithCertManager(caManager, certmanagers[serverSecret], tls.RequireAndVerifyClientCert, nil)
 		clientTLSConfig := webhooks.SetupTLSForVirtHandlerClients(caManager, certmanagers[clientSecret], false)
 		srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintln(w, "hello")
@@ -224,7 +224,7 @@ var _ = Describe("TLS", func() {
 	)
 
 	table.DescribeTable("should verify externally-managed client and server certificates", func(serverSecret, clientSecret string, errStr string) {
-		serverTLSConfig := webhooks.SetupTLSWithCertManager(caManager, certmanagers[serverSecret], tls.RequireAndVerifyClientCert)
+		serverTLSConfig := webhooks.SetupTLSWithCertManager(caManager, certmanagers[serverSecret], tls.RequireAndVerifyClientCert, nil)
 		clientTLSConfig := webhooks.SetupTLSForVirtHandlerClients(caManager, certmanagers[clientSecret], true)
 		srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintln(w, "hello")

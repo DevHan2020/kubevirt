@@ -184,6 +184,8 @@ type VirtControllerApp struct {
 	caConfigMapName  string
 	promCertFilePath string
 	promKeyFilePath  string
+
+	tlsCipherSuites []string
 }
 
 var _ service.Service = &VirtControllerApp{}
@@ -315,7 +317,7 @@ func (vca *VirtControllerApp) Run() {
 
 	promCertManager := bootstrap.NewFileCertificateManager(vca.promCertFilePath, vca.promKeyFilePath)
 	go promCertManager.Start()
-	promTLSConfig := webhooks.SetupPromTLS(promCertManager)
+	promTLSConfig := webhooks.SetupPromTLS(promCertManager, vca.tlsCipherSuites)
 
 	go func() {
 		httpLogger := logger.With("service", "http")
@@ -596,4 +598,6 @@ func (vca *VirtControllerApp) AddFlags() {
 
 	flag.StringVar(&vca.promKeyFilePath, "prom-key-file", defaultPromKeyFilePath,
 		"Private key for the client certificate used to prove the identity of the virt-controller when it must call out Promethus during a request")
+
+	flag.StringSliceVar(&vca.tlsCipherSuites, "tls-cipher-suites", nil, "Comma-separated list of cipher suites for the server.")
 }
