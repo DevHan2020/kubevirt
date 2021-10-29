@@ -118,6 +118,7 @@ type virtAPIApp struct {
 	caConfigMapName              string
 	tlsCertFilePath              string
 	tlsKeyFilePath               string
+	tlsCipherSuites              []string
 	handlerCertFilePath          string
 	handlerKeyFilePath           string
 	externallyManaged            bool
@@ -774,7 +775,7 @@ func (app *virtAPIApp) setupTLS(k8sCAManager webhooksutils.ClientCAManager, kube
 	// response is given. That status request won't send a peer cert regardless
 	// if the TLS handshake requests it. As a result, the TLS handshake fails
 	// and our aggregated endpoint never becomes available.
-	app.tlsConfig = webhooksutils.SetupTLSWithCertManager(k8sCAManager, app.certmanager, tls.VerifyClientCertIfGiven)
+	app.tlsConfig = webhooksutils.SetupTLSWithCertManager(k8sCAManager, app.certmanager, tls.VerifyClientCertIfGiven, app.tlsCipherSuites)
 	app.handlerTLSConfiguration = webhooksutils.SetupTLSForVirtHandlerClients(kubevirtCAManager, app.handlerCertManager, app.externallyManaged)
 }
 
@@ -992,6 +993,8 @@ func (app *virtAPIApp) AddFlags() {
 		"File containing the default x509 Certificate for HTTPS")
 	flag.StringVar(&app.tlsKeyFilePath, "tls-key-file", defaultTlsKeyFilePath,
 		"File containing the default x509 private key matching --tls-cert-file")
+	flag.StringSliceVar(&app.tlsCipherSuites, "tls-cipher-suites", nil,
+		"Comma-separated list of cipher suites for the server.")
 	flag.StringVar(&app.handlerCertFilePath, "handler-cert-file", defaultHandlerCertFilePath,
 		"Client certificate used to prove the identity of the virt-api when it must call virt-handler during a request")
 	flag.StringVar(&app.handlerKeyFilePath, "handler-key-file", defaultHandlerKeyFilePath,

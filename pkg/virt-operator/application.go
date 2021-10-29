@@ -95,6 +95,7 @@ type VirtOperatorApp struct {
 	LeaderElection      leaderelectionconfig.Configuration
 	aggregatorClient    aggregatorclient.Interface
 	operatorCertManager certificate.Manager
+	tlsCipherSuites     []string
 
 	clusterConfig *virtconfig.ClusterConfig
 }
@@ -287,7 +288,7 @@ func Execute() {
 }
 
 func (app *VirtOperatorApp) Run() {
-	promTLSConfig := webhooks.SetupPromTLS(app.operatorCertManager)
+	promTLSConfig := webhooks.SetupPromTLS(app.operatorCertManager, app.tlsCipherSuites)
 
 	go func() {
 
@@ -351,7 +352,7 @@ func (app *VirtOperatorApp) Run() {
 
 	caManager := webhooks.NewKubernetesClientCAManager(apiAuthConfig.GetStore())
 
-	tlsConfig := webhooks.SetupTLSWithCertManager(caManager, app.operatorCertManager, tls.VerifyClientCertIfGiven)
+	tlsConfig := webhooks.SetupTLSWithCertManager(caManager, app.operatorCertManager, tls.VerifyClientCertIfGiven, app.tlsCipherSuites)
 
 	webhookServer := &http.Server{
 		Addr:      fmt.Sprintf("%s:%d", app.BindAddress, 8444),
@@ -416,6 +417,8 @@ func (app *VirtOperatorApp) AddFlags() {
 	app.Port = defaultPort
 
 	app.AddCommonFlags()
+	pflag.StringSliceVar(&app.tlsCipherSuites, "tls-cipher-suites", nil,
+		"Comma-separated list of cipher suites for the server.")
 }
 
 func (app *VirtOperatorApp) prepareCertManagers() {

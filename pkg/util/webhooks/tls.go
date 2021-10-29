@@ -12,48 +12,180 @@ import (
 
 const noSrvCertMessage = "No server certificate, server is not yet ready to receive traffic"
 
-func SetupPromTLS(certManager certificate.Manager) *tls.Config {
-	tlsConfig := &tls.Config{
-		MinVersion: tls.VersionTLS12,
-		GetCertificate: func(info *tls.ClientHelloInfo) (certificate *tls.Certificate, err error) {
-			cert := certManager.Current()
-			if cert == nil {
-				return nil, fmt.Errorf(noSrvCertMessage)
-			}
-			return cert, nil
-		},
-		GetConfigForClient: func(hi *tls.ClientHelloInfo) (*tls.Config, error) {
-			crt := certManager.Current()
-			if crt == nil {
-				log.Log.Error("failed to get a certificate")
-				return nil, fmt.Errorf("failed to get a certificate")
-			}
-			config := &tls.Config{
-				MinVersion:   tls.VersionTLS12,
-				Certificates: []tls.Certificate{*crt},
-				ClientAuth:   tls.VerifyClientCertIfGiven,
-			}
+var ciphers = map[string]uint16{
+	"TLS_RSA_WITH_RC4_128_SHA":                tls.TLS_RSA_WITH_RC4_128_SHA,
+	"TLS_RSA_WITH_3DES_EDE_CBC_SHA":           tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA,
+	"TLS_RSA_WITH_AES_128_CBC_SHA":            tls.TLS_RSA_WITH_AES_128_CBC_SHA,
+	"TLS_RSA_WITH_AES_256_CBC_SHA":            tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+	"TLS_RSA_WITH_AES_128_CBC_SHA256":         tls.TLS_RSA_WITH_AES_128_CBC_SHA256,
+	"TLS_RSA_WITH_AES_128_GCM_SHA256":         tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
+	"TLS_RSA_WITH_AES_256_GCM_SHA384":         tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
+	"TLS_ECDHE_ECDSA_WITH_RC4_128_SHA":        tls.TLS_ECDHE_ECDSA_WITH_RC4_128_SHA,
+	"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA":    tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
+	"TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA":    tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
+	"TLS_ECDHE_RSA_WITH_RC4_128_SHA":          tls.TLS_ECDHE_RSA_WITH_RC4_128_SHA,
+	"TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA":     tls.TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA,
+	"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA":      tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+	"TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA":      tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+	"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256": tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+	"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256":   tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
+	"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256":   tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+	"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256": tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+	"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384":   tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+	"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384": tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+	"TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305":    tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+	"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305":  tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+}
 
-			config.BuildNameToCertificate()
-			return config, nil
-		},
+func SetupPromTLS(certManager certificate.Manager, tlsCipherSuites []string) *tls.Config {
+	cipherSuites := cipherSuitesFormat(tlsCipherSuites)
+	var tlsConfig *tls.Config
+	if cipherSuites != nil {
+		tlsConfig = &tls.Config{
+			CipherSuites: cipherSuites,
+			MinVersion:   tls.VersionTLS12,
+			GetCertificate: func(info *tls.ClientHelloInfo) (certificate *tls.Certificate, err error) {
+				cert := certManager.Current()
+				if cert == nil {
+					return nil, fmt.Errorf("No server certificate, server is not yet ready to receive traffic")
+				}
+				return cert, nil
+			},
+			GetConfigForClient: func(hi *tls.ClientHelloInfo) (*tls.Config, error) {
+				crt := certManager.Current()
+				if crt == nil {
+					log.Log.Error("failed to get a certificate")
+					return nil, fmt.Errorf("failed to get a certificate")
+				}
+				config := &tls.Config{
+					CipherSuites: cipherSuites,
+					MinVersion:   tls.VersionTLS12,
+					Certificates: []tls.Certificate{*crt},
+					ClientAuth:   tls.VerifyClientCertIfGiven,
+				}
+
+				config.BuildNameToCertificate()
+				return config, nil
+			},
+		}
+	} else {
+		tlsConfig = &tls.Config{
+			CipherSuites: cipherSuites,
+			MinVersion:   tls.VersionTLS12,
+			GetCertificate: func(info *tls.ClientHelloInfo) (certificate *tls.Certificate, err error) {
+				cert := certManager.Current()
+				if cert == nil {
+					return nil, fmt.Errorf("No server certificate, server is not yet ready to receive traffic")
+				}
+				return cert, nil
+			},
+			GetConfigForClient: func(hi *tls.ClientHelloInfo) (*tls.Config, error) {
+				crt := certManager.Current()
+				if crt == nil {
+					log.Log.Error("failed to get a certificate")
+					return nil, fmt.Errorf("failed to get a certificate")
+				}
+				config := &tls.Config{
+					CipherSuites: cipherSuites,
+					MinVersion:   tls.VersionTLS12,
+					Certificates: []tls.Certificate{*crt},
+					ClientAuth:   tls.VerifyClientCertIfGiven,
+				}
+
+				config.BuildNameToCertificate()
+				return config, nil
+			},
+		}
 	}
 	tlsConfig.BuildNameToCertificate()
 	return tlsConfig
 }
-func SetupTLSWithCertManager(caManager ClientCAManager, certManager certificate.Manager, clientAuth tls.ClientAuthType) *tls.Config {
+func SetupTLSWithCertManager(caManager ClientCAManager, certManager certificate.Manager, clientAuth tls.ClientAuthType, tlsCipherSuites []string) *tls.Config {
+	cipherSuites := cipherSuitesFormat(tlsCipherSuites)
+	var tlsConfig *tls.Config
+	if cipherSuites != nil {
+		tlsConfig = &tls.Config{
+			CipherSuites: cipherSuites,
+			GetCertificate: func(info *tls.ClientHelloInfo) (certificate *tls.Certificate, err error) {
+				cert := certManager.Current()
+				if cert == nil {
+					return nil, fmt.Errorf("No server certificate, server is not yet ready to receive traffic")
+				}
+				return cert, nil
+			},
+			GetConfigForClient: func(hi *tls.ClientHelloInfo) (*tls.Config, error) {
+				cert := certManager.Current()
+				if cert == nil {
+					return nil, fmt.Errorf("No server certificate, server is not yet ready to receive traffic")
+				}
+
+				clientCAPool, err := caManager.GetCurrent()
+				if err != nil {
+					log.Log.Reason(err).Error("Failed to get requestheader client CA")
+					return nil, err
+				}
+				config := &tls.Config{
+					CipherSuites: cipherSuites,
+					MinVersion:   tls.VersionTLS12,
+					Certificates: []tls.Certificate{*cert},
+					ClientCAs:    clientCAPool,
+					ClientAuth:   clientAuth,
+				}
+
+				config.BuildNameToCertificate()
+				return config, nil
+			},
+		}
+	} else {
+		tlsConfig = &tls.Config{
+			GetCertificate: func(info *tls.ClientHelloInfo) (certificate *tls.Certificate, err error) {
+				cert := certManager.Current()
+				if cert == nil {
+					return nil, fmt.Errorf("No server certificate, server is not yet ready to receive traffic")
+				}
+				return cert, nil
+			},
+			GetConfigForClient: func(hi *tls.ClientHelloInfo) (*tls.Config, error) {
+				cert := certManager.Current()
+				if cert == nil {
+					return nil, fmt.Errorf("No server certificate, server is not yet ready to receive traffic")
+				}
+
+				clientCAPool, err := caManager.GetCurrent()
+				if err != nil {
+					log.Log.Reason(err).Error("Failed to get requestheader client CA")
+					return nil, err
+				}
+				config := &tls.Config{
+					MinVersion:   tls.VersionTLS12,
+					Certificates: []tls.Certificate{*cert},
+					ClientCAs:    clientCAPool,
+					ClientAuth:   clientAuth,
+				}
+
+				config.BuildNameToCertificate()
+				return config, nil
+			},
+		}
+	}
+	tlsConfig.BuildNameToCertificate()
+	return tlsConfig
+}
+func SetupTLSWithCertManagerWithCipher(caManager ClientCAManager, certManager certificate.Manager,
+	clientAuth tls.ClientAuthType, tlsCipherSuites []uint16) *tls.Config {
 	tlsConfig := &tls.Config{
+		CipherSuites: tlsCipherSuites,
 		GetCertificate: func(info *tls.ClientHelloInfo) (certificate *tls.Certificate, err error) {
 			cert := certManager.Current()
 			if cert == nil {
-				return nil, fmt.Errorf(noSrvCertMessage)
+				return nil, fmt.Errorf("No server certificate, server is not yet ready to receive traffic")
 			}
 			return cert, nil
 		},
 		GetConfigForClient: func(hi *tls.ClientHelloInfo) (*tls.Config, error) {
 			cert := certManager.Current()
 			if cert == nil {
-				return nil, fmt.Errorf(noSrvCertMessage)
+				return nil, fmt.Errorf("No server certificate, server is not yet ready to receive traffic")
 			}
 
 			clientCAPool, err := caManager.GetCurrent()
@@ -62,6 +194,7 @@ func SetupTLSWithCertManager(caManager ClientCAManager, certManager certificate.
 				return nil, err
 			}
 			config := &tls.Config{
+				CipherSuites: tlsCipherSuites,
 				MinVersion:   tls.VersionTLS12,
 				Certificates: []tls.Certificate{*cert},
 				ClientCAs:    clientCAPool,
@@ -220,4 +353,20 @@ func createIntermediatePool(externallyManaged bool, rawIntermediates [][]byte) *
 		}
 	}
 	return intermediatePool
+}
+func cipherSuitesFormat(cipherNames []string) []uint16 {
+	if cipherNames == nil || len(cipherNames) == 0 {
+		log.Log.Info("Cipher suite is empty")
+		return nil
+	}
+	ciphersIntSlice := make([]uint16, 0)
+	for _, cipher := range cipherNames {
+		intValue, ok := ciphers[cipher]
+		if !ok {
+			log.Log.Errorf("Cipher suite %s not supported or doesn't exist", cipher)
+			return nil
+		}
+		ciphersIntSlice = append(ciphersIntSlice, intValue)
+	}
+	return ciphersIntSlice
 }
