@@ -603,7 +603,7 @@ func getGW(vm *v1.VirtualMachineInstance) net.IP {
 		log.Log.Reason(err).Errorf("cannot obtain virt to ipam client: %v\n", err)
 	}
 	dynamicClient := dynamic.NewForConfigOrDie(virtConfig)
-	grv := schema.GroupVersionResource{Group: "ipfixed.cmos.chinamobile", Version: "v1alpha1", Resource: "ippools"}
+	grv := schema.GroupVersionResource{Group: "ipfixed.cmos.chinamobile.com", Version: "v1alpha1", Resource: "ippools"}
 	result, err := dynamicClient.Resource(grv).Get(ippoolName, metav1.GetOptions{})
 	if err != nil {
 		log.Log.Reason(err).Errorf("cannot get ippool result: %v\n", err)
