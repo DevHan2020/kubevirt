@@ -556,7 +556,11 @@ func (b *BridgePodInterface) setInterfaceRoutes() error {
 		return fmt.Errorf("No gateway address found in routes for %s", b.podInterfaceName)
 	}
 	//b.vif.Gateway = routes[0].Gw
-	b.vif.Gateway = getGW(b.vmi)
+	if b.vmi.Annotations["cmos.ippool"] == "" {
+		b.vif.Gateway = routes[0].Gw
+	} else {
+		b.vif.Gateway = getGW(b.vmi)
+	}
 	if len(routes) > 1 {
 		dhcpRoutes := filterPodNetworkRoutes(routes, b.vif)
 		b.vif.Routes = &dhcpRoutes
@@ -596,8 +600,8 @@ type IPPoolSpec struct {
 	Gateway string `json:"gateway,omitempty"`
 }
 
-func getGW(vm *v1.VirtualMachineInstance) net.IP {
-	ippoolName := vm.Annotations["cmos.ippool"]
+func getGW(vmi *v1.VirtualMachineInstance) net.IP {
+	ippoolName := vmi.Annotations["cmos.ippool"]
 	virtConfig, err := clientcmd.BuildConfigFromFlags("", "")
 	if err != nil {
 		log.Log.Reason(err).Errorf("cannot obtain virt to ipam client: %v\n", err)
