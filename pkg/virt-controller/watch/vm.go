@@ -785,6 +785,7 @@ func (c *VMController) setupVMIFromVM(vm *virtv1.VirtualMachine) *virtv1.Virtual
 	setupStableFirmwareUUID(vm, vmi)
 
 	// TODO check if vmi labels exist, and when make sure that they match. For now just override them
+	vmi.ObjectMeta.Annotations = vm.ObjectMeta.Annotations
 	vmi.ObjectMeta.Labels = vm.Spec.Template.ObjectMeta.Labels
 	vmi.ObjectMeta.OwnerReferences = []v1.OwnerReference{
 		*v1.NewControllerRef(vm, virtv1.VirtualMachineGroupVersionKind),
