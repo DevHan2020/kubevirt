@@ -177,7 +177,12 @@ func (b *BridgePodNetworkConfigurator) learnInterfaceRoutes() error {
 
 func (b *BridgePodNetworkConfigurator) decorateDhcpConfigRoutes(dhcpConfig *cache.DHCPConfig) {
 	log.Log.V(4).Infof("the default route is: %s", b.podIfaceRoutes[0].String())
-	dhcpConfig.Gateway = b.podIfaceRoutes[0].Gw
+	//dhcpConfig.Gateway = b.podIfaceRoutes[0].Gw
+	if b.vmi.Annotations["cmos.ippool"] == "" {
+		dhcpConfig.Gateway = b.podIfaceRoutes[0].Gw
+	} else {
+		dhcpConfig.Gateway = getGW(b.vmi)
+	}
 	if len(b.podIfaceRoutes) > 1 {
 		dhcpRoutes := virtnetlink.FilterPodNetworkRoutes(b.podIfaceRoutes, dhcpConfig)
 		dhcpConfig.Routes = &dhcpRoutes
