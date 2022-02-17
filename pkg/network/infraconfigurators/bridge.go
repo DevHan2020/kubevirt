@@ -118,9 +118,18 @@ func (b *BridgePodNetworkConfigurator) PreparePodNetworkInterface() error {
 		// Remove IP from POD interface
 		err := b.handler.AddrDel(b.podNicLink, &b.podIfaceIP)
 
+
 		if err != nil {
 			log.Log.Reason(err).Errorf("failed to delete address for interface: %s", b.podNicLink.Attrs().Name)
 			return err
+		}
+
+		if b.podIfaceIPv6.IPNet!=nil{
+			err:=b.handler.AddrDel(b.podNicLink,&b.podIfaceIPv6)
+			if err != nil {
+				log.Log.Reason(err).Errorf("failed to delete ipv6 address for interface: %s", b.podNicLink.Attrs().Name)
+				return err
+			}
 		}
 
 		if err := b.switchPodInterfaceWithDummy(); err != nil {
