@@ -24,6 +24,7 @@ type BridgePodNetworkConfigurator struct {
 	launcherPID         int
 	vmMac               *net.HardwareAddr
 	podIfaceIP          netlink.Addr
+	podIfaceIPv6        netlink.Addr
 	podNicLink          netlink.Link
 	podIfaceRoutes      []netlink.Route
 	tapDeviceName       string
@@ -63,6 +64,16 @@ func (b *BridgePodNetworkConfigurator) DiscoverPodNetworkInterface(podIfaceName 
 		}
 	}
 
+	v6addrList, err := b.handler.AddrList(b.podNicLink, netlink.FAMILY_V6)
+	if len(v6addrList) != 0 {
+		for _, v6addr := range v6addrList {
+			if v6addr.IP.IsGlobalUnicast() {
+				b.podIfaceIPv6 = v6addr
+				break
+			}
+		}
+	}
+
 	b.tapDeviceName = virtnetlink.GenerateTapDeviceName(podIfaceName)
 
 	b.vmMac, err = virtnetlink.RetrieveMacAddressFromVMISpecIface(b.vmiSpecIface)
@@ -86,7 +97,9 @@ func (b *BridgePodNetworkConfigurator) GenerateNonRecoverableDHCPConfig() *cache
 		IPAMDisabled: !b.ipamEnabled,
 		IP:           b.podIfaceIP,
 	}
-
+	if b.podIfaceIPv6.IPNet != nil {
+		dhcpConfig.IPv6 = b.podIfaceIPv6
+	}
 	if b.ipamEnabled && len(b.podIfaceRoutes) > 0 {
 		log.Log.V(4).Infof("got to add %d routes to the DhcpConfig", len(b.podIfaceRoutes))
 		b.decorateDhcpConfigRoutes(dhcpConfig)
