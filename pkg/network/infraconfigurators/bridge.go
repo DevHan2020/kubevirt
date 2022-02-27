@@ -286,5 +286,13 @@ func (b *BridgePodNetworkConfigurator) switchPodInterfaceWithDummy() error {
 		return err
 	}
 
+	if b.podIfaceIPv6.IPNet != nil {
+		err = b.handler.AddrAdd(dummy, &b.podIfaceIPv6)
+		if err != nil {
+			log.Log.Reason(err).Errorf("failed to replace original IPV6 address to dummy interface: %s", originalPodInterfaceName)
+			return err
+		}
+	}
+
 	return nil
 }
