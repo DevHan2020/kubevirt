@@ -127,7 +127,7 @@ func (b *BridgePodNetworkConfigurator) PreparePodNetworkInterface() error {
 			err := b.handler.AddrDel(b.podNicLink, &b.podIfaceIPv6)
 			if err != nil {
 				log.Log.Reason(err).Errorf("failed to delete ipv6 address for interface: %s,ip: %s", b.podNicLink.Attrs().Name, b.podIfaceIPv6.IP.String())
-				return err
+				// ignore ipv6 delete error, becase ipv6 addr will disapper when the network interface is down state
 			}
 		}
 
